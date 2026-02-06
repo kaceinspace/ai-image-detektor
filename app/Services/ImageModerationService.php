@@ -9,15 +9,15 @@ use Illuminate\Support\Facades\Log;
 
 class ImageModerationService
 {
-    protected GoogleVisionService $visionService;
+    protected NsfwJsService $moderationService;
 
-    public function __construct(GoogleVisionService $visionService)
+    public function __construct(NsfwJsService $moderationService)
     {
-        $this->visionService = $visionService;
+        $this->moderationService = $moderationService;
     }
 
     /**
-     * Process image through Google Vision API and save results
+     * Process image through NSFW.js and save results
      * 
      * @param Image $image
      * @return bool Success status
@@ -30,15 +30,15 @@ class ImageModerationService
         // Get full path to image using Storage facade (respects configured disk root)
         $fullPath = \Illuminate\Support\Facades\Storage::path($image->file_path);
 
-        // Analyze with Google Vision
-        $result = $this->visionService->analyzeSafeSearch($fullPath);
+        // Analyze with NSFW.js
+        $result = $this->moderationService->analyze($fullPath);
 
         if (!$result['success']) {
             // Save error to moderation result
             ModerationResult::create([
                 'image_id' => $image->id,
                 'api_error' => $result['error'],
-                'processing_time_ms' => $result['processing_time_ms'],
+                'processing_time_ms' => $result['processing_time_ms'] ?? 0,
                 'analyzed_at' => now(),
             ]);
 
@@ -61,7 +61,7 @@ class ImageModerationService
             'racy_likelihood' => $result['racy_likelihood'],
             'medical_likelihood' => $result['medical_likelihood'],
             'spoof_likelihood' => $result['spoof_likelihood'],
-            'raw_response' => $result['raw_response'],
+            'raw_response' => $result['raw_scores'] ?? [],
             'processing_time_ms' => $result['processing_time_ms'],
             'analyzed_at' => now(),
         ]);
